@@ -23,7 +23,7 @@ Crear una interfaz clara y funcional que permita:
 
 ---
 
-## ✅ Funcionalidades implementadas (hasta Parte 4)
+## ✅ Funcionalidades implementadas (hasta Parte 5)
 
 | Parte        | Descripción                                                                 |
 |--------------|------------------------------------------------------------------------------|
@@ -31,44 +31,57 @@ Crear una interfaz clara y funcional que permita:
 | Parte 2      | Configuración de Redux Toolkit para manejar el catálogo                    |
 | Parte 3      | Vista de catálogo con productos simulados y lógica de selección            |
 | Parte 4      | Formulario de pago y entrega: captura de tarjeta y dirección, validación y guardado en Redux |
-
+| Parte 5      | Pantalla de resumen del pedido con recuperación desde `localStorage` |
 ---
 
-## 🧾 Parte 4: Formulario de pago y entrega
+## Parte 4 y Parte 5: Formulario de pago y pantalla de resumen
 
-Esta sección permite al usuario ingresar su información de pago y entrega.  
-Los datos son validados y almacenados en Redux (`checkoutSlice.js`) para ser utilizados más adelante en el resumen del pedido.
+Estas dos partes conforman la segunda mitad del flujo de compra:  
+el usuario primero ingresa su información de pago y entrega, y luego puede revisar un resumen completo del pedido antes de finalizar.
+
+### Parte 4: Formulario de pago y entrega
+
+- Captura datos sensibles como número de tarjeta, titular, dirección y nombre.
+- Valida que todos los campos estén completos antes de continuar.
+- Almacena la información en Redux (`checkoutSlice.js`) y en `localStorage` para mantener la persistencia en caso de recarga.
+
+### Parte 5: Pantalla de resumen
+
+- Recupera y muestra los datos del producto seleccionado y los datos de entrega ingresados.
+- Permite al usuario verificar la información antes de confirmar la compra.
+- El flujo se mantiene intacto incluso si el usuario recarga la página, gracias al uso de `localStorage`.
 
 **Incluye:**
-- Inputs para datos de tarjeta y dirección
-- Validación básica de campos vacíos
-- Navegación automática a la pantalla de resumen (`/summary`)
+- Validación segura para evitar errores al renderizar
+- Fallback visual si el estado no está disponible
+- Botón para finalizar compra y continuar al resultado (`/result`)
 
----
----
 
 ## Estructura del proyecto
 
 src/ 
 ├── features/ │ 
-├── catalog/ │ 
-│ ├── CatalogView.jsx │ 
-│ ├── ProductCard.jsx │ 
-│ └── catalogSlice.js ├── store/ 
-│ └── index.js 
-├── routes/ 
-│ └── AppRoutes.jsx 
+ ├── catalog/ │ 
+ │ ├── CatalogView.jsx │ 
+ │ ├── ProductCard.jsx │ 
+ │ └── catalogSlice.js │ 
+ ├── checkout/ │ 
+ │ ├── CheckoutForm.jsx │
+ │ └── checkoutSlice.js │ 
+ └── summary/ │ 
+   └── Summary.jsx 
+ ├── routes/ │ 
+  └── AppRoutes.jsx
+ ├── store/ │ 
+  └── index.js 
 ├── App.jsx 
 └── main.jsx
-
 ---
 ## 🧪 Próximas funcionalidades (en progreso)
 
-- Pantalla de resumen de pedido
-- Simulación de resultado de pago
+- Simulación de resultado de pago (`/result`)
+- Mensaje visual de éxito o error
 - Reinicio del flujo al finalizar la compra
-
----
 
 ## 🖥️ Cómo ejecutar el proyecto localmente
 
