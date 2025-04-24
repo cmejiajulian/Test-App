@@ -1,12 +1,70 @@
-# React + Vite
+# Checkout App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicación web que simula un flujo de compra de productos con selección, vista previa y paso hacia el formulario de pago.
 
-Currently, two official plugins are available:
+## 🧠 Objetivo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Crear una interfaz clara y funcional que permita:
 
-## Expanding the ESLint configuration
+- Visualizar productos disponibles
+- Seleccionar uno y avanzar al proceso de compra
+- Gestionar el estado global con Redux Toolkit
+- Usar rutas amigables con React Router
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+---
+
+## ⚙️ Tecnologías utilizadas
+
+- [Vite](https://vitejs.dev/) + [React](https://reactjs.org/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [Redux Toolkit](https://redux-toolkit.js.org/)
+- [React Router](https://reactrouter.com/)
+
+---
+
+## Funcionalidades implementadas (hasta Parte 3)
+
+| Parte        | Descripción                                                                 |
+|--------------|------------------------------------------------------------------------------|
+|  Parte 1    | Setup inicial del proyecto con Vite, React, Tailwind y estructura de rutas |
+|  Parte 2    | Configuración de Redux Toolkit para manejar el catálogo                    |
+| Parte 3    | Vista de catálogo con productos simulados y lógica de selección            |
+
+---
+
+## Estructura del proyecto
+
+src/ 
+├── features/ │ 
+├── catalog/ │ 
+│ ├── CatalogView.jsx │ 
+│ ├── ProductCard.jsx │ 
+│ └── catalogSlice.js ├── store/ 
+│ └── index.js 
+├── routes/ 
+│ └── AppRoutes.jsx 
+├── App.jsx 
+└── main.jsx
+
+---
+
+## 🧪 Próximas funcionalidades (en progreso)
+
+- Formulario de pago y datos de entrega
+- Pantalla de resumen de pedido
+- Simulación de resultado de pago
+
+---
+
+## 🖥️ Cómo ejecutar el proyecto localmente
+
+```bash
+# Clonar el repositorio
+git clone git@github.com:TU_USUARIO/checkout-app.git
+cd checkout-app
+
+# Instalar dependencias
+npm install
+
+# Ejecutar en modo desarrollo
+npm run dev
