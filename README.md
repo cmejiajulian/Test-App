@@ -2,6 +2,8 @@
 
 Aplicación web que simula un flujo de compra de productos con selección, vista previa y paso hacia el formulario de pago.
 
+---
+
 ## 🧠 Objetivo
 
 Crear una interfaz clara y funcional que permita:
@@ -23,7 +25,7 @@ Crear una interfaz clara y funcional que permita:
 
 ---
 
-## ✅ Funcionalidades implementadas (hasta Parte 5)
+## ✅ Funcionalidades implementadas
 
 | Parte        | Descripción                                                                 |
 |--------------|------------------------------------------------------------------------------|
@@ -32,9 +34,11 @@ Crear una interfaz clara y funcional que permita:
 | Parte 3      | Vista de catálogo con productos simulados y lógica de selección            |
 | Parte 4      | Formulario de pago y entrega: captura de tarjeta y dirección, validación y guardado en Redux |
 | Parte 5      | Pantalla de resumen del pedido con recuperación desde `localStorage` |
+| Parte 6      | Pantalla de resultado (`/result`) con mensaje de éxito o error y reinicio del flujo |
+
 ---
 
-## Parte 4 y Parte 5: Formulario de pago y pantalla de resumen
+## 🧾 Parte 4 y Parte 5: Formulario de pago y pantalla de resumen
 
 Estas dos partes conforman la segunda mitad del flujo de compra:  
 el usuario primero ingresa su información de pago y entrega, y luego puede revisar un resumen completo del pedido antes de finalizar.
@@ -56,6 +60,18 @@ el usuario primero ingresa su información de pago y entrega, y luego puede revi
 - Fallback visual si el estado no está disponible
 - Botón para finalizar compra y continuar al resultado (`/result`)
 
+---
+
+## Parte 6: Pantalla de resultado
+
+Después del resumen, se simula un resultado de pago usando lógica aleatoria:
+
+- El usuario ve un estado "Procesando pago..." por unos segundos
+- Luego se muestra un mensaje de éxito o error
+- Incluye botón para volver al catálogo y reiniciar el flujo
+- El resultado se simula en frontend usando `Math.random()`
+- Se limpia el estado de Redux y localStorage al finalizar
+
 
 ## Estructura del proyecto
 
@@ -69,7 +85,9 @@ src/
  │ ├── CheckoutForm.jsx │
  │ └── checkoutSlice.js │ 
  └── summary/ │ 
-   └── Summary.jsx 
+ │ └── Summary.jsx 
+ └── result/ │ 
+    └── Result.jsx
  ├── routes/ │ 
   └── AppRoutes.jsx
  ├── store/ │ 
@@ -77,11 +95,6 @@ src/
 ├── App.jsx 
 └── main.jsx
 ---
-## 🧪 Próximas funcionalidades (en progreso)
-
-- Simulación de resultado de pago (`/result`)
-- Mensaje visual de éxito o error
-- Reinicio del flujo al finalizar la compra
 
 ## 🖥️ Cómo ejecutar el proyecto localmente
 
