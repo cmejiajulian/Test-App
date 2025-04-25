@@ -38,7 +38,9 @@ export default function CatalogView(){
 
     
     const handleSelect = (product)=>{
-    dispatch(selectItem(product))
+    console.log('producto seleccionado',product)
+    dispatch(selectItem(product)) 
+    localStorage.setItem("selectedProduct",JSON.stringify(product))
     navigate('/checkout')
     }
 
