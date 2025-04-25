@@ -11,7 +11,7 @@ export default function Summary() {
     try {
       product = JSON.parse(storedProduct)
     } catch (e) {
-      console.error("❌ Error parseando producto:", e)
+      console.error("Error en producto:", e)
       product = null
     }
   }
@@ -32,7 +32,7 @@ export default function Summary() {
     try {
       checkout = JSON.parse(storedCheckout)
     } catch (e) {
-      console.error("❌ Error parseando checkoutData:", e)
+      console.error("Error checkoutData:", e)
     }
   }
 
@@ -41,7 +41,7 @@ export default function Summary() {
       <div className="max-w-md mx-auto p-4 text-center text-red-600 font-semibold">
         No hay producto seleccionado. Por favor vuelve al catálogo.
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/result')}
           className="mt-4 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-4 rounded"
         >
           Volver al catálogo
