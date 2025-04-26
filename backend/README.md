@@ -30,6 +30,23 @@ Esta rama `feature/setup-backend` contiene únicamente la **configuración inici
 
 ---
 
+## 📦 Módulo `Products` implementado
+
+Se ha creado el módulo `Products`, el cual incluye:
+
+- Entidad `Product` con los siguientes campos:
+  - `id` (número, autogenerado)
+  - `name` (string)
+  - `description` (string)
+  - `price` (decimal)
+  - `stock` (número)
+  - `imageUrl` (string)
+- Conexión con TypeORM.
+- Inicialización del módulo en `AppModule`.
+- Controlador y servicio básico generados con Nest CLI.
+
+---
+
 ## 📂 Estructura actual del proyecto
 
 backend/ 
