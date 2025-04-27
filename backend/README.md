@@ -1,60 +1,81 @@
-# Backend - Test-App
+# Backend – Test-App
 
-Este backend ha sido creado utilizando **NestJS** como framework principal, con conexión a una base de datos **PostgreSQL** mediante **TypeORM**.  
-Esta rama `feature/setup-backend` contiene únicamente la **configuración inicial** del proyecto.
-
----
-
-## 🚀 Tecnologías utilizadas
-
-- NestJS 10+
-- TypeORM
-- PostgreSQL
-- @nestjs/config
-- Node.js
-- TypeScript
+Este proyecto backend está construido con **NestJS** y **TypeORM**, conectado a PostgreSQL, y expone un CRUD completo para la entidad **Product**.
 
 ---
 
-## 🛠 Configuración inicial realizada
+## Tecnologías y paquetes
 
-- Creación del proyecto `backend/` utilizando NestJS CLI.
-- Instalación de dependencias:
-  - `@nestjs/typeorm`
-  - `typeorm`
-  - `pg`
-  - `@nestjs/config`
-- Configuración de la conexión a PostgreSQL usando `TypeOrmModule`.
-- Gestión de variables de entorno mediante `.env`.
-- Ajuste de `AppModule` para cargar entidades automáticamente y conectar a la base de datos.
+- **NestJS** 10+  
+- **TypeORM**  
+- **PostgreSQL**  
+- **@nestjs/config** (gestión de `.env`)  
+- **class-validator**, **class-transformer** (validación de DTOs)  
+- **@nestjs/mapped-types** (DTOs parciales)  
+- **Node.js**, **TypeScript**
 
 ---
 
-## 📦 Módulo `Products` implementado
+## Configuración inicial
 
-Se ha creado el módulo `Products`, el cual incluye:
+1. Clona este repositorio y entra en la carpeta `backend/`.  
+2. Crea un archivo `.env` con tus credenciales y puerto:
 
-- Entidad `Product` con los siguientes campos:
-  - `id` (número, autogenerado)
-  - `name` (string)
-  - `description` (string)
-  - `price` (decimal)
-  - `stock` (número)
-  - `imageUrl` (string)
-- Conexión con TypeORM.
-- Inicialización del módulo en `AppModule`.
-- Controlador y servicio básico generados con Nest CLI.
+   ```env
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_USERNAME=postgres
+   DB_PASSWORD=BackendTest123
+   DB_DATABASE=w_test
+   PORT=3001
+   
+3. Instala dependencias:
 
----
+npm install
 
-## 📂 Estructura actual del proyecto
+4. Levanta el servidor en modo desarrollo:
 
-backend/ 
-├── src/ │ 
-├── app.module.ts 
-│ 
-├── main.ts 
-├── .env 
-├── package.json 
-├── tsconfig.json 
-└── README.md
+npm run start:dev
+Arranca en http://localhost:3001
+
+## Estructura de carpetas
+
+backend/
+├─ src/
+│  ├─ app.module.ts
+│  ├─ main.ts
+│  └─ products/
+│     ├─ dto/
+│     │  ├ create-product.dto.ts
+│     │  └ update-product.dto.ts
+│     ├─ entities/
+│     │  └ product.entity.ts
+│     ├─ products.controller.ts
+│     ├─ products.service.ts
+│     └─ products.module.ts
+├─ .env
+├─ package.json
+├─ tsconfig.json
+└─ README.md
+
+## 📋 Endpoints de prueba
+
+
+Método	Ruta	Descripción
+POST	/products	Crea un nuevo producto
+GET	/products	Lista todos los productos
+GET	/products/:id	Obtiene un producto por su ID
+PATCH	/products/:id	Actualiza un producto
+DELETE	/products/:id	Elimina un producto
+
+## Prueba con Postman o Insomnia:
+
+201 Created al crear
+
+Array de productos al listar
+
+Objeto al obtener por ID
+
+{ affected: 1 } en actualización y eliminación
+
+400 Bad Request si envías datos inválidos
