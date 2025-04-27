@@ -1,58 +1,62 @@
-import { useDispatch,useSelector } from "react-redux";
-import { setStock,selectItem} from "./catalogSlice"
-import  ProductCard from "./ProductCard"
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+// frontend/src/features/catalog/CatalogView.jsx
+import { useState, useEffect } from 'react'
+import ProductCard from './ProductCard'
+import { useNavigate } from 'react-router-dom'
 
+export default function CatalogView() {
+  const [stock, setStock]     = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(null)
+  const navigate              = useNavigate()
 
-const sampleProducts = [
-    {
-        id:1,
-        name:' Chorizo santarrosano',
-        description:'Delicioso Chorizo artesanal santarrosano',
-        price:10000,
-        stock:5,
-        image: 'https://placehold.co/300x200?text=Chorizo'
+  // ——————————————————————————————————————————————————————
+  // Determinamos la URL base según tu bundler:
+  // CRA: process.env.REACT_APP_API_URL
+  // Vite: import.meta.env.VITE_API_URL
+  // Fallback hard-coded si ninguna variable existe:
+  const apiUrl =
+    // @ts-ignore
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
+    process.env.REACT_APP_API_URL ||
+    'http://localhost:3001'
+  // ——————————————————————————————————————————————————————
 
-    },
-    {
-        id:2,
-        name:'Torta de chocolo',
-        description:'Deliciosa Torta de Chocolo de solo maiz',
-        price:4000,
-        stock:3,
-        image:'https://placehold.co/300x200?text=Torta de Chocolo'
-    }
-]
+  useEffect(() => {
+    fetch(`${apiUrl}/products`)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
+      })
+      .then(data => {
+        setStock(data)
+        setLoading(false)
+      })
+      .catch(err => {
+        setError(err.message)
+        setLoading(false)
+      })
+  }, [apiUrl])
 
-export default function CatalogView(){
-    const dispatch = useDispatch()
-    const navigate = useNavigate()
-    const stock =useSelector((state)=>state.catalog.stock)
-
-    useEffect(()=>{
-        if(stock.length === 0){
-            dispatch(setStock(sampleProducts))
-        }
-    },[dispatch,stock])
-
-    
-    const handleSelect = (product)=>{
-    console.log('producto seleccionado',product)
-    dispatch(selectItem(product)) 
-    localStorage.setItem("selectedProduct",JSON.stringify(product))
+  const handleSelect = product => {
+    localStorage.setItem('selectedProduct', JSON.stringify(product))
     navigate('/checkout')
-    }
+  }
 
-    return (
-        <div className="p-4 max-w-3xl mx-auto">
-            <h1 className="text-2xl font-bold mb-4">Productos disponibles</h1>
-            <div className="grid gap-4 md:grid-cols-2">
-                {stock.map((product)=>(
-                   <ProductCard key={product.id} product={product} onSelect= {()=>handleSelect(product)}/>
-                ))}
-            </div>
-        </div>
-    )
+  if (loading) return <p className="p-4">Cargando productos…</p>
+  if (error)   return <p className="p-4 text-red-600">Error: {error}</p>
 
+  return (
+    <div className="p-4 max-w-3xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Productos disponibles</h1>
+      <div className="grid gap-4 md:grid-cols-2">
+        {stock.map(p => (
+          <ProductCard
+            key={p.id}
+            product={p}
+            onSelect={() => handleSelect(p)}
+          />
+        ))}
+      </div>
+    </div>
+  )
 }
