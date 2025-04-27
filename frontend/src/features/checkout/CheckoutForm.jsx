@@ -1,54 +1,89 @@
-import { useState } from "react"
-import { useDispatch } from "react-redux"
-import { updateCheckoutInfo } from "./checkoutSlice"
-import { useNavigate } from "react-router-dom"
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 export default function CheckoutForm() {
-  const dispatch = useDispatch()
+  // Estado del formulario
+  const [customer, setCustomer] = useState({
+    name: '',
+    cardNumber: '',
+    expMonth: '',
+    expYear: '',
+    cvc: '',
+  })
+  const [delivery, setDelivery] = useState({
+    address: '',
+    city: '',
+    postal: '',
+    phone: '',
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const navigate = useNavigate()
 
-  const [formData, setFormData] = useState({
-    cardNumber: '',
-    cardHolder: '',
-    expiration: '',
-    cvv: '',
-    name: '',
-    address: ''
-  })
+  // Producto seleccionado + precio + fees
+  const product = JSON.parse(localStorage.getItem('selectedProduct'))
+  const amount = product.price // + cualquier fee
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
+  const handleChange = (e, group, setter) => {
+    setter(prev => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async e => {
     e.preventDefault()
-
-    const isEmpty = Object.values(formData).some(val => val.trim() === '')
-    if (isEmpty) {
-      alert('Por favor, completa todos los campos.')
-      return
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/transactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          customerInfo: customer,
+          deliveryInfo: delivery,
+        }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const tx = await res.json()
+      localStorage.setItem('transaction', JSON.stringify(tx))
+      navigate('/summary')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
-
-    dispatch(updateCheckoutInfo(formData))
-    localStorage.setItem('checkoutData', JSON.stringify(formData)) // ✅ Guardar en localStorage
-    navigate('/summary')
   }
 
   return (
     <div className="max-w-md mx-auto p-4">
-      <h2 className="text-xl font-bold mb-4">Datos de pago y entrega</h2>
+      <h2 className="text-xl font-bold mb-4">Checkout</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <input name="cardNumber" placeholder="Número de tarjeta" onChange={handleChange} className="w-full border p-2 rounded" />
-        <input name="cardHolder" placeholder="Nombre del titular" onChange={handleChange} className="w-full border p-2 rounded" />
-        <input name="expiration" placeholder="MM/AA" onChange={handleChange} className="w-full border p-2 rounded" />
-        <input name="cvv" placeholder="CVV" onChange={handleChange} className="w-full border p-2 rounded" />
-        <input name="name" placeholder="Tu nombre" onChange={handleChange} className="w-full border p-2 rounded" />
-        <input name="address" placeholder="Dirección de entrega" onChange={handleChange} className="w-full border p-2 rounded" />
-        <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
-          Continuar
+        {/* Datos del cliente */}
+        <fieldset>
+          <legend className="font-semibold">Datos de tarjeta</legend>
+          <input name="name"     placeholder="Nombre en la tarjeta"       onChange={e => handleChange(e, 'customer', setCustomer)} required />
+          <input name="cardNumber"placeholder="Número de tarjeta"           onChange={e => handleChange(e, 'customer', setCustomer)} required />
+          <input name="expMonth"  placeholder="Mes (MM)"                     onChange={e => handleChange(e, 'customer', setCustomer)} required />
+          <input name="expYear"   placeholder="Año (YYYY)"                  onChange={e => handleChange(e, 'customer', setCustomer)} required />
+          <input name="cvc"       placeholder="CVC"                          onChange={e => handleChange(e, 'customer', setCustomer)} required />
+        </fieldset>
+
+        {/* Datos de envío */}
+        <fieldset>
+          <legend className="font-semibold">Dirección de envío</legend>
+          <input name="address" placeholder="Dirección" onChange={e => handleChange(e, 'delivery', setDelivery)} required />
+          <input name="city"    placeholder="Ciudad"     onChange={e => handleChange(e, 'delivery', setDelivery)} required />
+          <input name="postal"  placeholder="Código postal"onChange={e => handleChange(e, 'delivery', setDelivery)} required />
+          <input name="phone"   placeholder="Teléfono"    onChange={e => handleChange(e, 'delivery', setDelivery)} required />
+        </fieldset>
+
+        {error && <p className="text-red-600">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="bg-blue-600 text-white px-4 py-2 rounded"
+        >
+          {loading ? 'Procesando…' : `Pagar $${amount}`}
         </button>
       </form>
     </div>
