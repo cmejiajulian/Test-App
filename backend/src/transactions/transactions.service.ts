@@ -1,4 +1,4 @@
-// backend/src/transactions/transactions.service.ts
+
 import {
   Injectable,
   NotFoundException,
@@ -28,8 +28,6 @@ export class TransactionsService {
     private readonly productsSvc : ProductsService,
   ) {}
 
-  /* ─────────────────────────────── CRUD ────────────────────────────── */
-
   async create(dto: CreateTransactionDto): Promise<Transaction> {
     const tx = this.txRepo.create({
       amount      : dto.amount,
@@ -50,107 +48,81 @@ export class TransactionsService {
     return tx;
   }
 
-  /* ─────────────── Confirmación de pago con Wompi ─────────────────── */
-
   async confirmPayment(id: number): Promise<Transaction> {
     const tx = await this.findOne(id);
 
-    /* 1) Tokenizar tarjeta */
-    const {
-      cardNumber,
-      expMonth,
-      expYear,
-      cvc,
-      name,
-      email,
-    } = tx.customerInfo;
-
-    const tokenResp = await firstValueFrom(
-      this.http.post(
+    // 1) Tokenizar la tarjeta
+    const { cardNumber, expMonth, expYear, cvc, name, email } = tx.customerInfo;
+    const year2 = expYear.slice(-2);
+    let cardToken: string;
+    try {
+      const resp = await firstValueFrom(this.http.post(
         `${this.cfg.get('WOMPI_API_URL')}/tokens/cards`,
-        {
-          number     : cardNumber,
-          exp_month  : expMonth,
-          exp_year   : expYear.slice(-2), // “27” en vez de “2027”
-          cvc,
-          card_holder: name,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${this.cfg.get<string>('WOMPI_PUBLIC_KEY')}`,
-          },
-        },
-      ),
-    ).catch(e => {
-      console.dir(e.response?.data, { depth: null, colors: true });
+        { number: cardNumber, exp_month: expMonth, exp_year: year2, cvc, card_holder: name },
+        { headers: { Authorization: `Bearer ${this.cfg.get<string>('WOMPI_PUBLIC_KEY')}` } }
+      ));
+      cardToken = resp.data.data.id;
+    } catch (err: any) {
+      console.dir(err.response?.data, { depth: null });
       throw new BadGatewayException('Error al tokenizar la tarjeta');
-    });
+    }
 
-    const cardToken = tokenResp.data.data.id;
+    // 2) Obtener acceptance_token
+    let acceptance_token: string;
+    try {
+      const resp = await firstValueFrom(
+        this.http.get(`${this.cfg.get('WOMPI_API_URL')}/merchants/${this.cfg.get<string>('WOMPI_PUBLIC_KEY')}`)
+      );
+      acceptance_token = resp.data.data.presigned_acceptance.acceptance_token;
+    } catch {
+      throw new BadGatewayException('Error obteniendo acceptance_token');
+    }
 
-    /* 2) Obtener acceptance_token */
-    const accResp = await firstValueFrom(
-      this.http.get(
-        `${this.cfg.get('WOMPI_API_URL')}/merchants/${this.cfg.get<string>(
-          'WOMPI_PUBLIC_KEY',
-        )}`,
-      ),
-    ).catch(() => {
-      throw new BadGatewayException('Error obteniendo acceptance token');
-    });
-
-    const acceptance_token =
-      accResp.data.data.presigned_acceptance.acceptance_token;
-
-    /* 3) Firma con integrity_key */
-    const reference        = `TX-${Date.now()}`;
-    const amountPesos      = Number(tx.amount);
-    const amountInCentsStr = (amountPesos * 100).toFixed(0); // "1500000"
-    const amountInCents    = Number(amountInCentsStr);
-    const currency         = 'COP';
-
-    const integrityKey = this.cfg.get<string>('WOMPI_INTEGRITY_KEY');
-    if (!integrityKey)
-      throw new BadGatewayException('WOMPI_INTEGRITY_KEY no definida');
-
-    const stringToSign = `${reference}${amountInCentsStr}${currency}${integrityKey}`;
-    const signature    = crypto
-      .createHmac('sha256', integrityKey)
+    // 3) Firma HMAC-SHA256 CON LA PRIVATE KEY (no con la integrity key)
+    const reference     = `TX-${Date.now()}`;
+    const amountInCents = Math.round(Number(tx.amount) * 100);
+    const currency      = 'COP';
+    const privateKey    = this.cfg.get<string>('WOMPI_PRIVATE_KEY');
+    if (!privateKey) {
+      throw new BadGatewayException('WOMPI_PRIVATE_KEY no definida en .env');
+    }
+    const stringToSign = `${reference}${amountInCents}${currency}`;
+    const signature = crypto
+      .createHmac('sha256', privateKey)
       .update(stringToSign)
       .digest('hex');
 
-    /*  Debug opcional */
-    console.log({
-      amountPesos,
-      amountInCentsStr,
-      stringToSign,
-      signature,
-    });
+    // (opcional) log para depurar
+    console.log('--- DEBUG FIRMA ---');
+    console.log({ reference, amountInCents, currency, stringToSign, signature });
 
-    /* 4) Ejecutar el pago */
-    const payResp = await firstValueFrom(
-      this.http.post(`${this.cfg.get('WOMPI_API_URL')}/transactions`, {
-        amount_in_cents : amountInCents,
-        currency,
-        reference,
-        signature,
-        acceptance_token,
-        payment_method  : { type: 'CARD', token: cardToken, installments: 1 },
-        customer_email  : email,
-      }),
-    ).catch(e => {
-      console.dir(e.response?.data, { depth: null, colors: true });
+    // 4) Disparar el pago
+    let wompiTx: any;
+    try {
+      const resp = await firstValueFrom(this.http.post(
+        `${this.cfg.get('WOMPI_API_URL')}/transactions`,
+        {
+          amount_in_cents : amountInCents,
+          currency,
+          reference,
+          signature,
+          acceptance_token,
+          payment_method: { type: 'CARD', token: cardToken, installments: 1 },
+          customer_email: email,
+        }
+      ));
+      wompiTx = resp.data.data;
+    } catch (err: any) {
+      console.dir(err.response?.data, { depth: null });
       throw new BadGatewayException('Error al procesar el pago con Wompi');
-    });
+    }
 
-    const wompiTx = payResp.data.data;
-
-    /* 5) Actualizar transacción local */
+    // 5) Actualizar la transacción local
     tx.status     = wompiTx.status as TransactionStatus;
     tx.externalId = wompiTx.id;
     await this.txRepo.save(tx);
 
-    /* 6) Descontar stock si fue aprobado */
+    // 6) Descontar stock si fue aprobado
     if (tx.status === TransactionStatus.APPROVED) {
       const { productId, quantity } = tx.deliveryInfo;
       try {
@@ -162,8 +134,6 @@ export class TransactionsService {
 
     return tx;
   }
-
-  /* ─────────────────────── Resumen de fees ─────────────────────────── */
 
   getSummary(amount: number) {
     const baseFee     = Math.round(amount * 0.03);
