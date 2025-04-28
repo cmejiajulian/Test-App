@@ -1,9 +1,7 @@
-
-// backend/src/transactions/transactions.module.ts
-import { Module }            from '@nestjs/common';
-import { TypeOrmModule }     from '@nestjs/typeorm';
-import { HttpModule }        from '@nestjs/axios';
-import { ConfigService }     from '@nestjs/config';
+import { Module }                       from '@nestjs/common';
+import { TypeOrmModule }                from '@nestjs/typeorm';
+import { HttpModule }                   from '@nestjs/axios';
+import { ConfigModule, ConfigService }  from '@nestjs/config';
 
 import { Transaction }            from './entities/transaction.entity';
 import { TransactionsService }    from './transactions.service';
@@ -14,8 +12,10 @@ import { ProductsModule }         from '../products/products.module';
   imports: [
     TypeOrmModule.forFeature([Transaction]),
 
+    // Todas las peticiones a Wompi usarán por defecto la clave privada
     HttpModule.registerAsync({
-      
+      imports: [ConfigModule],
+      inject : [ConfigService],
       useFactory: (cfg: ConfigService) => ({
         baseURL: cfg.get<string>('WOMPI_API_URL'),
         headers: {
@@ -23,12 +23,11 @@ import { ProductsModule }         from '../products/products.module';
           'Content-Type': 'application/json',
         },
       }),
-      inject: [ConfigService],   
     }),
 
     ProductsModule,
   ],
-  providers: [TransactionsService],
+  providers  : [TransactionsService],
   controllers: [TransactionsController],
 })
 export class TransactionsModule {}

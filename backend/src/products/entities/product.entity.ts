@@ -14,7 +14,7 @@ export class Product {
   @Column('decimal')
   price: number;
 
-  @Column()
+  @Column('int')
   stock: number;
 
   @Column()
