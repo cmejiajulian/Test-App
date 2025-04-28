@@ -1,4 +1,3 @@
-
 import {
   Injectable,
   NotFoundException,
@@ -22,127 +21,123 @@ import { ProductsService }      from '../products/products.service';
 export class TransactionsService {
   constructor(
     @InjectRepository(Transaction)
-    private readonly txRepo      : Repository<Transaction>,
-    private readonly http        : HttpService,
-    private readonly cfg         : ConfigService,
-    private readonly productsSvc : ProductsService,
+    private readonly txRepo: Repository<Transaction>,
+    private readonly http: HttpService,
+    private readonly cfg: ConfigService,
+    private readonly productsSvc: ProductsService,
   ) {}
 
   async create(dto: CreateTransactionDto): Promise<Transaction> {
-    const tx = this.txRepo.create({
-      amount      : dto.amount,
-      customerInfo: dto.customerInfo,
-      deliveryInfo: dto.deliveryInfo,
-      status      : TransactionStatus.PENDING,
-    });
+    const tx = this.txRepo.create({ ...dto, status: TransactionStatus.PENDING });
     return this.txRepo.save(tx);
   }
 
-  findAll() {
-    return this.txRepo.find({ order: { createdAt: 'DESC' } });
+  async findAll(): Promise<Transaction[]> {
+    return this.txRepo.find();
   }
 
-  async findOne(id: number) {
-    const tx = await this.txRepo.findOneBy({ id });
-    if (!tx) throw new NotFoundException(`Transaction ${id} not found`);
+  async findOne(id: number): Promise<Transaction> {
+    const tx = await this.txRepo.findOne({ where: { id } });
+    if (!tx) throw new NotFoundException(`Transaction ${id} no encontrada`);
     return tx;
   }
 
   async confirmPayment(id: number): Promise<Transaction> {
-    const tx = await this.findOne(id);
+    console.log('→ API URL =', this.cfg.get('WOMPI_API_URL'));
+    console.log('→ PRIVATE =', this.cfg.get('WOMPI_PRIVATE_KEY')?.slice(0,8), '…');
 
-    // 1) Tokenizar la tarjeta
+    const tx = await this.findOne(id);
     const { cardNumber, expMonth, expYear, cvc, name, email } = tx.customerInfo;
-    const year2 = expYear.slice(-2);
+    const twoDigitYear = expYear.toString().slice(-2);
+    const privateKey    = this.cfg.get<string>('WOMPI_PRIVATE_KEY')!;
+
+    // 1) Tokenizar tarjeta
     let cardToken: string;
     try {
-      const resp = await firstValueFrom(this.http.post(
-        `${this.cfg.get('WOMPI_API_URL')}/tokens/cards`,
-        { number: cardNumber, exp_month: expMonth, exp_year: year2, cvc, card_holder: name },
-        { headers: { Authorization: `Bearer ${this.cfg.get<string>('WOMPI_PUBLIC_KEY')}` } }
-      ));
-      cardToken = resp.data.data.id;
-    } catch (err: any) {
-      console.dir(err.response?.data, { depth: null });
+      const { data } = await firstValueFrom(
+        this.http.post(
+          `${this.cfg.get('WOMPI_API_URL')}/tokens/cards`,
+          { number: cardNumber, exp_month: expMonth, exp_year: twoDigitYear, cvc, card_holder: name },
+          { headers: { Authorization: `Bearer ${privateKey}` } },
+        ),
+      );
+      cardToken = data.data.id;
+    } catch (e: any) {
       throw new BadGatewayException('Error al tokenizar la tarjeta');
     }
 
     // 2) Obtener acceptance_token
     let acceptance_token: string;
     try {
-      const resp = await firstValueFrom(
-        this.http.get(`${this.cfg.get('WOMPI_API_URL')}/merchants/${this.cfg.get<string>('WOMPI_PUBLIC_KEY')}`)
+      const { data } = await firstValueFrom(
+        this.http.get(`${this.cfg.get('WOMPI_API_URL')}/merchants/${this.cfg.get<string>('WOMPI_PUBLIC_KEY')}`),
       );
-      acceptance_token = resp.data.data.presigned_acceptance.acceptance_token;
+      acceptance_token = data.data.presigned_acceptance.acceptance_token;
     } catch {
-      throw new BadGatewayException('Error obteniendo acceptance_token');
+      throw new BadGatewayException('Error al obtener acceptance_token');
     }
 
-    // 3) Firma HMAC-SHA256 CON LA PRIVATE KEY (no con la integrity key)
+    // 3) Preparar datos y firma
     const reference     = `TX-${Date.now()}`;
     const amountInCents = Math.round(Number(tx.amount) * 100);
     const currency      = 'COP';
-    const privateKey    = this.cfg.get<string>('WOMPI_PRIVATE_KEY');
-    if (!privateKey) {
-      throw new BadGatewayException('WOMPI_PRIVATE_KEY no definida en .env');
-    }
-    const stringToSign = `${reference}${amountInCents}${currency}`;
-    const signature = crypto
-      .createHmac('sha256', privateKey)
-      .update(stringToSign)
+    const integrityKey  = this.cfg.get<string>('WOMPI_INTEGRITY_KEY')!;
+    const signature     = crypto
+      .createHash('sha256')
+      .update(`${reference}${amountInCents}${currency}${integrityKey}`)
       .digest('hex');
 
-    // (opcional) log para depurar
-    console.log('--- DEBUG FIRMA ---');
-    console.log({ reference, amountInCents, currency, stringToSign, signature });
+    console.log('--- DEBUG FIRMA ---', { reference, amountInCents, currency, signature });
 
     // 4) Disparar el pago
     let wompiTx: any;
     try {
-      const resp = await firstValueFrom(this.http.post(
-        `${this.cfg.get('WOMPI_API_URL')}/transactions`,
-        {
-          amount_in_cents : amountInCents,
-          currency,
-          reference,
-          signature,
-          acceptance_token,
-          payment_method: { type: 'CARD', token: cardToken, installments: 1 },
-          customer_email: email,
-        }
-      ));
-      wompiTx = resp.data.data;
-    } catch (err: any) {
-      console.dir(err.response?.data, { depth: null });
+      const { data: txData } = await firstValueFrom(
+        this.http.post(
+          `${this.cfg.get('WOMPI_API_URL')}/transactions`,
+          {
+            amount_in_cents: amountInCents,
+            currency,
+            reference,
+            signature,
+            acceptance_token,
+            payment_method: { type: 'CARD', token: cardToken, installments: 1 },
+            customer_email: email,
+          },
+          { headers: { Authorization: `Bearer ${privateKey}` } },
+        ),
+      );
+      wompiTx = txData.data;
+    } catch {
       throw new BadGatewayException('Error al procesar el pago con Wompi');
     }
 
-    // 5) Actualizar la transacción local
+    // 5) Guardar resultado y descontar stock
     tx.status     = wompiTx.status as TransactionStatus;
     tx.externalId = wompiTx.id;
     await this.txRepo.save(tx);
-
-    // 6) Descontar stock si fue aprobado
     if (tx.status === TransactionStatus.APPROVED) {
-      const { productId, quantity } = tx.deliveryInfo;
-      try {
-        await this.productsSvc.decrementStock(productId, quantity);
-      } catch (e: any) {
-        console.error('Stock no actualizado:', e.message);
-      }
+      await this.productsSvc.decrementStock(tx.deliveryInfo.productId, tx.deliveryInfo.quantity);
     }
 
     return tx;
   }
 
   getSummary(amount: number) {
-    const baseFee     = Math.round(amount * 0.03);
-    const deliveryFee = 500;
     return {
-      itemAmount: amount,
-      baseFee,
-      deliveryFee,
-      total: amount + baseFee + deliveryFee,
+      productAmount: amount,
+      baseFee:       Number(this.cfg.get<number>('BASE_FEE', 0)),
+      deliveryFee:   Number(this.cfg.get<number>('DELIVERY_FEE', 0)),
+      total:         amount + Number(this.cfg.get<number>('BASE_FEE', 0)) + Number(this.cfg.get<number>('DELIVERY_FEE', 0)),
     };
+  }
+
+  async handleExternalStatus(txId: number, status: TransactionStatus): Promise<void> {
+    const tx = await this.findOne(txId);
+    tx.status = status;
+    await this.txRepo.save(tx);
+    if (status === TransactionStatus.APPROVED) {
+      await this.productsSvc.decrementStock(tx.deliveryInfo.productId, tx.deliveryInfo.quantity);
+    }
   }
 }
